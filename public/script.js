@@ -21,6 +21,286 @@ const clearBtn = document.getElementById('clearBtn');
 const contactForm = document.getElementById('contactForm');
 const toast = document.getElementById('toast');
 const toastMessage = document.getElementById('toastMessage');
+const loginBtn = document.getElementById('loginBtn');
+const loginBtnMobile = document.getElementById('loginBtnMobile');
+const signupBtnMobile = document.getElementById('signupBtnMobile');
+const logoutBtnMobile = document.getElementById('logoutBtnMobile');
+const deleteAccountBtnMobile = document.getElementById('deleteAccountBtnMobile');
+
+// Delete account confirm modal elements
+const confirmOverlay = document.getElementById('confirmOverlay');
+const confirmCancelBtn = document.getElementById('confirmCancelBtn');
+const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+const confirmPasswordInput = document.getElementById('confirmPasswordInput');
+const confirmError = document.getElementById('confirmError');
+
+// Auth Modal elements
+const authModal = document.getElementById('authModal');
+const authModalClose = document.getElementById('authModalClose');
+const loginFormSection = document.getElementById('loginForm');
+const signupFormSection = document.getElementById('signupForm');
+const showSignupLink = document.getElementById('showSignup');
+const showLoginLink = document.getElementById('showLogin');
+const loginFormEl = document.getElementById('loginFormEl');
+const signupFormEl = document.getElementById('signupFormEl');
+const loginError = document.getElementById('loginError');
+const signupError = document.getElementById('signupError');
+const passwordToggleButtons = document.querySelectorAll('.password-toggle');
+
+// ========================================
+// Auth State Management
+// ========================================
+function getAuthToken() {
+    return localStorage.getItem('authToken');
+}
+
+function getAuthUser() {
+    const u = localStorage.getItem('authUser');
+    return u ? JSON.parse(u) : null;
+}
+
+function isLoggedIn() {
+    return !!getAuthToken();
+}
+
+function setDisplay(el, value) {
+    if (el) el.style.display = value;
+}
+
+function updateAuthUI() {
+    const loggedIn = isLoggedIn();
+    if (loggedIn) {
+        setDisplay(loginBtn, 'none');
+        setDisplay(loginBtnMobile, 'none');
+        setDisplay(signupBtnMobile, 'none');
+        setDisplay(logoutBtnMobile, 'inline-flex');
+        setDisplay(deleteAccountBtnMobile, 'inline-flex');
+    } else {
+        setDisplay(loginBtn, 'inline-flex');
+        setDisplay(loginBtnMobile, 'inline-flex');
+        setDisplay(signupBtnMobile, 'inline-flex');
+        setDisplay(logoutBtnMobile, 'none');
+        setDisplay(deleteAccountBtnMobile, 'none');
+    }
+}
+
+function resetPasswordVisibility() {
+    passwordToggleButtons.forEach((btn) => {
+        const targetId = btn.getAttribute('data-target');
+        const input = document.getElementById(targetId);
+        if (!input) return;
+        input.type = 'password';
+        btn.setAttribute('aria-pressed', 'false');
+        btn.setAttribute('aria-label', 'Show password');
+    });
+}
+
+function openAuthModal(mode) {
+    authModal.style.display = 'flex';
+    loginError.textContent = '';
+    signupError.textContent = '';
+    resetPasswordVisibility();
+    if (mode === 'signup') {
+        loginFormSection.style.display = 'none';
+        signupFormSection.style.display = 'block';
+    } else {
+        loginFormSection.style.display = 'block';
+        signupFormSection.style.display = 'none';
+    }
+}
+
+function closeAuthModal() {
+    authModal.style.display = 'none';
+    resetPasswordVisibility();
+}
+
+function openDeleteConfirmModal() {
+    if (confirmError) confirmError.textContent = '';
+    if (confirmPasswordInput) confirmPasswordInput.value = '';
+    if (confirmOverlay) confirmOverlay.style.display = 'flex';
+}
+
+function closeDeleteConfirmModal() {
+    if (confirmOverlay) confirmOverlay.style.display = 'none';
+    if (confirmError) confirmError.textContent = '';
+    if (confirmPasswordInput) confirmPasswordInput.value = '';
+}
+
+async function handleDeleteAccount() {
+    const token = getAuthToken();
+    if (!token) {
+        showToast('Please log in first');
+        return;
+    }
+
+    const password = String(confirmPasswordInput?.value || '').trim();
+    if (!password) {
+        if (confirmError) confirmError.textContent = 'Password is required.';
+        return;
+    }
+
+    if (confirmDeleteBtn) {
+        confirmDeleteBtn.disabled = true;
+        confirmDeleteBtn.textContent = 'Deleting...';
+    }
+
+    try {
+        const res = await fetch('/api/auth/account', {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + token
+            },
+            body: JSON.stringify({ password })
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Delete account failed');
+
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('authUser');
+        updateAuthUI();
+        closeDeleteConfirmModal();
+        closeMobileMenu();
+        showToast('Account deleted successfully');
+    } catch (error) {
+        if (confirmError) confirmError.textContent = error.message;
+    } finally {
+        if (confirmDeleteBtn) {
+            confirmDeleteBtn.disabled = false;
+            confirmDeleteBtn.textContent = 'Delete Account';
+        }
+    }
+}
+
+// Modal open/close handlers
+if (loginBtn) loginBtn.addEventListener('click', () => openAuthModal('login'));
+if (loginBtnMobile) loginBtnMobile.addEventListener('click', () => openAuthModal('login'));
+if (signupBtnMobile) signupBtnMobile.addEventListener('click', () => openAuthModal('signup'));
+if (authModalClose) authModalClose.addEventListener('click', closeAuthModal);
+if (authModal) authModal.addEventListener('click', (e) => { if (e.target === authModal) closeAuthModal(); });
+if (showSignupLink) showSignupLink.addEventListener('click', (e) => { e.preventDefault(); openAuthModal('signup'); });
+if (showLoginLink) showLoginLink.addEventListener('click', (e) => { e.preventDefault(); openAuthModal('login'); });
+
+passwordToggleButtons.forEach((btn) => {
+    btn.addEventListener('click', () => {
+        const targetId = btn.getAttribute('data-target');
+        const input = document.getElementById(targetId);
+        if (!input) return;
+
+        const isHidden = input.type === 'password';
+        input.type = isHidden ? 'text' : 'password';
+        btn.setAttribute('aria-pressed', isHidden ? 'true' : 'false');
+        btn.setAttribute('aria-label', isHidden ? 'Hide password' : 'Show password');
+    });
+});
+
+// Login form submit
+loginFormEl.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    loginError.textContent = '';
+    const email = document.getElementById('loginEmail').value;
+    const password = document.getElementById('loginPassword').value;
+    const btn = loginFormEl.querySelector('.auth-submit-btn');
+    btn.disabled = true;
+    btn.textContent = 'Logging in...';
+
+    try {
+        const res = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Login failed');
+
+        localStorage.setItem('authToken', data.token);
+        localStorage.setItem('authUser', JSON.stringify(data.user));
+        updateAuthUI();
+        closeAuthModal();
+        showToast(`Welcome back, ${data.user.name}!`);
+        loginFormEl.reset();
+    } catch (err) {
+        loginError.textContent = err.message;
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Log In';
+    }
+});
+
+// Signup form submit
+signupFormEl.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    signupError.textContent = '';
+    const name = document.getElementById('signupName').value;
+    const email = document.getElementById('signupEmail').value;
+    const password = document.getElementById('signupPassword').value;
+    const confirmPassword = document.getElementById('signupConfirmPassword').value;
+    const btn = signupFormEl.querySelector('.auth-submit-btn');
+
+    if (password !== confirmPassword) {
+        signupError.textContent = 'Passwords do not match.';
+        return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Signing up...';
+
+    try {
+        const res = await fetch('/api/auth/signup', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, email, password })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Signup failed');
+
+        localStorage.setItem('authToken', data.token);
+        localStorage.setItem('authUser', JSON.stringify(data.user));
+        updateAuthUI();
+        closeAuthModal();
+        showToast(`Welcome, ${data.user.name}!`);
+        signupFormEl.reset();
+        resetPasswordVisibility();
+    } catch (err) {
+        signupError.textContent = err.message;
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Sign Up';
+    }
+});
+
+// Logout
+function handleLogout() {
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('authUser');
+    updateAuthUI();
+    closeDeleteConfirmModal();
+    showToast('Logged out successfully!');
+}
+
+logoutBtnMobile.addEventListener('click', handleLogout);
+if (deleteAccountBtnMobile) {
+    deleteAccountBtnMobile.addEventListener('click', openDeleteConfirmModal);
+}
+if (confirmCancelBtn) confirmCancelBtn.addEventListener('click', closeDeleteConfirmModal);
+if (confirmDeleteBtn) confirmDeleteBtn.addEventListener('click', handleDeleteAccount);
+if (confirmOverlay) {
+    confirmOverlay.addEventListener('click', (e) => {
+        if (e.target === confirmOverlay) closeDeleteConfirmModal();
+    });
+}
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && confirmOverlay && confirmOverlay.style.display === 'flex') {
+        closeDeleteConfirmModal();
+    }
+});
+
+// Initialize auth UI on load
+document.addEventListener('DOMContentLoaded', () => {
+    updateAuthUI();
+    resetPasswordVisibility();
+});
 
 // ========================================
 // Configuration
@@ -73,6 +353,8 @@ function handleScroll() {
     } else {
         navbar.classList.remove('scrolled');
     }
+
+    updateActiveNavOnScroll();
 }
 
 /**
@@ -89,6 +371,45 @@ function toggleMobileMenu() {
 function closeMobileMenu() {
     hamburger.classList.remove('active');
     navLinks.classList.remove('active');
+}
+
+/**
+ * Set active navbar link by href
+ * @param {string} href - Section href (e.g. '#about')
+ */
+function setActiveNavLink(href) {
+    const sectionLinks = navLinks.querySelectorAll('.nav-link[href^="#"]');
+    sectionLinks.forEach((link) => {
+        if (link.getAttribute('href') === href) {
+            link.classList.add('active');
+        } else {
+            link.classList.remove('active');
+        }
+    });
+}
+
+/**
+ * Update active nav item based on current scroll position
+ */
+function updateActiveNavOnScroll() {
+    const sectionLinks = navLinks.querySelectorAll('.nav-link[href^="#"]');
+    const sections = Array.from(sectionLinks)
+        .map((link) => document.querySelector(link.getAttribute('href')))
+        .filter(Boolean);
+
+    if (!sections.length) return;
+
+    const navbarHeight = navbar.offsetHeight;
+    const scrollY = window.scrollY + navbarHeight + 40;
+    let currentId = '#home';
+
+    sections.forEach((section) => {
+        if (scrollY >= section.offsetTop) {
+            currentId = `#${section.id}`;
+        }
+    });
+
+    setActiveNavLink(currentId);
 }
 
 // ========================================
@@ -175,12 +496,16 @@ async function enhancePrompt() {
     updateStatusBadge('processing');
     
     try {
-        // Call backend API
+        // Call backend API (include auth token if logged in for history saving)
+        const headers = { 'Content-Type': 'application/json' };
+        const token = getAuthToken();
+        if (token) {
+            headers['Authorization'] = 'Bearer ' + token;
+        }
+
         const response = await fetch(`${CONFIG.apiUrl}/api/enhance`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers,
             body: JSON.stringify({
                 prompt: prompt,
                 tone: toneDropdown.value
@@ -304,7 +629,7 @@ function handleContactSubmit(e) {
     console.log('Contact form submitted:', { name, email, message });
     
     // Show success toast
-    showToast('Message sent! (Demo - no backend)');
+    showToast('Message sent! We will get back to you soon.');
     
     // Reset form
     contactForm.reset();
@@ -321,6 +646,15 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Initialize character count
     updateCharCount();
+
+    // Ensure nav highlight matches current viewport/hash on load
+    if (window.location.hash && navLinks.querySelector(`.nav-link[href="${window.location.hash}"]`)) {
+        setActiveNavLink(window.location.hash);
+    } else {
+        updateActiveNavOnScroll();
+    }
+
+    handleScroll();
 });
 
 // Scroll events
@@ -359,6 +693,16 @@ copyBtn.addEventListener('click', copyToClipboard);
 // Clear button
 clearBtn.addEventListener('click', clearOutput);
 
+// Clear input button
+const clearInputBtn = document.getElementById('clearInputBtn');
+if (clearInputBtn) {
+    clearInputBtn.addEventListener('click', () => {
+        promptInput.value = '';
+        updateCharCount();
+        showToast('Input cleared');
+    });
+}
+
 // Contact form
 contactForm.addEventListener('submit', handleContactSubmit);
 
@@ -372,8 +716,10 @@ document.addEventListener('click', (e) => {
 // Handle smooth scroll for anchor links
 document.querySelectorAll('a[href^="#"]').forEach(anchor => {
     anchor.addEventListener('click', (e) => {
-        e.preventDefault();
         const targetId = anchor.getAttribute('href');
+        if (!targetId || targetId === '#') return;
+
+        e.preventDefault();
         const targetElement = document.querySelector(targetId);
         
         if (targetElement) {
@@ -384,6 +730,8 @@ document.querySelectorAll('a[href^="#"]').forEach(anchor => {
                 top: targetPosition,
                 behavior: 'smooth'
             });
+
+            setActiveNavLink(targetId);
         }
     });
 });

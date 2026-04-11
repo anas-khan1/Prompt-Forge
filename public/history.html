@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prompt History - PromptForge AI</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="icon" href="https://api.dicebear.com/7.x/shapes/svg?seed=promptforge" type="image/svg+xml">
+    <style>
+        .history-page {
+            min-height: 100vh;
+            padding: calc(var(--navbar-height) + 40px) 20px 60px;
+        }
+
+        .history-container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .history-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 32px;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .history-header h1 {
+            font-size: 1.75rem;
+            color: var(--text-primary);
+        }
+
+        .history-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .history-actions button {
+            padding: 8px 18px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            font-family: inherit;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all var(--duration-fast) var(--ease-out);
+        }
+
+        .btn-back {
+            background: transparent;
+            border: 1px solid var(--border-medium);
+            color: var(--text-primary);
+        }
+
+        .btn-back:hover {
+            background: var(--accent-light);
+            border-color: var(--accent-primary);
+            color: var(--accent-primary);
+        }
+
+        .btn-clear-all {
+            background: transparent;
+            border: 1px solid var(--error);
+            color: var(--error);
+        }
+
+        .btn-clear-all:hover {
+            background: rgba(239, 68, 68, 0.1);
+        }
+
+        .history-list {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .history-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-lg);
+            padding: 20px;
+            transition: all var(--duration-fast) var(--ease-out);
+        }
+
+        .history-card:hover {
+            box-shadow: var(--shadow-md);
+        }
+
+        .history-card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .history-card-meta {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .history-tone-badge {
+            padding: 2px 10px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            border-radius: var(--radius-full);
+            background: var(--accent-light);
+            color: var(--accent-primary);
+        }
+
+        .history-delete-btn {
+            width: 32px;
+            height: 32px;
+            border: none;
+            background: transparent;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all var(--duration-fast) var(--ease-out);
+        }
+
+        .history-delete-btn:hover {
+            background: rgba(239, 68, 68, 0.1);
+        }
+
+        .history-delete-btn svg {
+            width: 16px;
+            height: 16px;
+            color: var(--text-muted);
+        }
+
+        .history-delete-btn:hover svg {
+            color: var(--error);
+        }
+
+        .history-section {
+            margin-bottom: 8px;
+        }
+
+        .history-section-label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+
+        .history-section-text {
+            font-size: 0.9rem;
+            line-height: 1.6;
+            color: var(--text-primary);
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            max-height: 100px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .history-section-text.expanded {
+            max-height: none;
+        }
+
+        .history-expand-btn {
+            background: none;
+            border: none;
+            color: var(--accent-primary);
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            padding: 4px 0;
+            font-family: inherit;
+        }
+
+        .history-empty {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-muted);
+        }
+
+        .history-empty svg {
+            width: 48px;
+            height: 48px;
+            margin-bottom: 16px;
+            opacity: 0.4;
+        }
+
+        .history-empty p {
+            font-size: 1rem;
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+
+        .history-empty span {
+            font-size: 0.85rem;
+        }
+
+        .history-login-msg {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-muted);
+        }
+
+        .history-login-msg p {
+            font-size: 1.1rem;
+            margin-bottom: 16px;
+        }
+
+        .history-login-msg button {
+            padding: 10px 24px;
+            background: var(--gradient-primary);
+            border: none;
+            color: #fff;
+            font-size: 0.9rem;
+            font-weight: 600;
+            font-family: inherit;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+        }
+
+        .history-enhanced {
+            display: none;
+            margin-top: 8px;
+        }
+
+        .history-enhanced.show {
+            display: block;
+        }
+
+        .history-section-text.history-enhanced-text {
+            max-height: none;
+        }
+
+        .confirm-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            z-index: 2500;
+        }
+
+        .confirm-card {
+            width: 100%;
+            max-width: 420px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-xl);
+            padding: 20px;
+        }
+
+        .confirm-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+        }
+
+        .confirm-message {
+            font-size: 0.92rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+            margin-bottom: 12px;
+        }
+
+        .confirm-details {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-sm);
+            padding: 10px 12px;
+            font-size: 0.82rem;
+            line-height: 1.5;
+            color: var(--text-secondary);
+            max-height: 130px;
+            overflow: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            margin-bottom: 14px;
+            display: none;
+        }
+
+        .confirm-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+        }
+
+        .confirm-btn {
+            border: none;
+            border-radius: var(--radius-sm);
+            font-family: inherit;
+            font-size: 0.85rem;
+            font-weight: 600;
+            padding: 9px 14px;
+            cursor: pointer;
+        }
+
+        .confirm-btn.cancel {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-light);
+        }
+
+        .confirm-btn.delete {
+            background: var(--error);
+            color: #fff;
+        }
+
+        .confirm-btn.delete:hover {
+            opacity: 0.92;
+        }
+    </style>
+</head>
+<body>
+    <!-- Background Effects -->
+    <div class="bg-effects">
+        <div class="bg-blob blob-1"></div>
+        <div class="bg-blob blob-2"></div>
+        <div class="bg-blob blob-3"></div>
+        <div class="bg-grid"></div>
+    </div>
+
+    <!-- Navbar -->
+    <nav class="navbar" id="navbar">
+        <div class="nav-container">
+            <a href="/" class="nav-brand">
+                <div class="logo-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                    </svg>
+                </div>
+                <span class="brand-name">PromptForge<span class="brand-accent">AI</span></span>
+            </a>
+
+            <ul class="nav-links" id="navLinks">
+                <li class="nav-item nav-item-home"><a href="/#home" class="nav-link">Home</a></li>
+                <li class="nav-item nav-item-features"><a href="/#features" class="nav-link">Features</a></li>
+                <li class="nav-item nav-item-about"><a href="/#about" class="nav-link">About</a></li>
+                <li class="nav-item nav-item-contact"><a href="/#contact" class="nav-link">Contact</a></li>
+                <li class="nav-item nav-item-history"><a href="/history" class="nav-link active">History</a></li>
+                <li class="nav-auth-mobile">
+                    <div class="auth-buttons">
+                        <button class="auth-btn login-btn" id="historyLoginBtnMobile">Log In</button>
+                        <button class="auth-btn signup-btn" id="historySignupBtnMobile">Sign Up</button>
+                        <button class="auth-btn logout-btn" id="historyLogoutBtnMobile" style="display: none;">Log Out</button>
+                    </div>
+                </li>
+            </ul>
+
+            <div class="nav-actions">
+                <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">
+                    <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="5"></circle>
+                        <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"></path>
+                    </svg>
+                    <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                    </svg>
+                </button>
+                <button class="hamburger" id="hamburger" aria-label="Toggle menu">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- History Page -->
+    <main class="history-page">
+        <div class="history-container">
+            <div class="history-header">
+                <h1><span class="text-gradient">Prompt History</span></h1>
+                <div class="history-actions">
+                    <button class="btn-back" onclick="window.location.href='/'">← Back</button>
+                    <button class="btn-clear-all" id="clearAllBtn">Clear All</button>
+                </div>
+            </div>
+            <div id="historyContent">
+                <div class="history-empty">
+                    <p>Loading...</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Toast Notification -->
+    <div class="toast" id="toast">
+        <div class="toast-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+        </div>
+        <span class="toast-message" id="toastMessage">Done!</span>
+    </div>
+
+    <div class="confirm-overlay" id="confirmOverlay">
+        <div class="confirm-card" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+            <h3 class="confirm-title" id="confirmTitle">Confirm action</h3>
+            <p class="confirm-message" id="confirmMessage">Are you sure?</p>
+            <div class="confirm-details" id="confirmDetails"></div>
+            <div class="confirm-actions">
+                <button class="confirm-btn cancel" id="confirmCancelBtn" type="button">Cancel</button>
+                <button class="confirm-btn delete" id="confirmDeleteBtn" type="button">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Theme
+        const themeToggle = document.getElementById('themeToggle');
+        const navbar = document.getElementById('navbar');
+        const navLinks = document.getElementById('navLinks');
+        const hamburger = document.getElementById('hamburger');
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme) {
+            document.documentElement.setAttribute('data-theme', savedTheme);
+        } else {
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            document.documentElement.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
+        }
+        themeToggle.addEventListener('click', () => {
+            const cur = document.documentElement.getAttribute('data-theme');
+            const next = cur === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', next);
+            localStorage.setItem('theme', next);
+        });
+
+        // Navbar behavior
+        function handleScroll() {
+            if (window.scrollY > 20) {
+                navbar.classList.add('scrolled');
+            } else {
+                navbar.classList.remove('scrolled');
+            }
+        }
+
+        function toggleMobileMenu() {
+            hamburger.classList.toggle('active');
+            navLinks.classList.toggle('active');
+        }
+
+        hamburger.addEventListener('click', toggleMobileMenu);
+        navLinks.querySelectorAll('.nav-link').forEach((link) => {
+            link.addEventListener('click', () => {
+                navLinks.classList.remove('active');
+                hamburger.classList.remove('active');
+            });
+        });
+        window.addEventListener('scroll', handleScroll);
+        handleScroll();
+
+        // Toast
+        const toast = document.getElementById('toast');
+        const toastMessage = document.getElementById('toastMessage');
+        function showToast(msg, duration = 3000) {
+            toastMessage.textContent = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), duration);
+        }
+
+        // Auth check
+        let token = localStorage.getItem('authToken');
+        const historyContent = document.getElementById('historyContent');
+        const clearAllBtn = document.getElementById('clearAllBtn');
+        const historyLoginBtnMobile = document.getElementById('historyLoginBtnMobile');
+        const historySignupBtnMobile = document.getElementById('historySignupBtnMobile');
+        const historyLogoutBtnMobile = document.getElementById('historyLogoutBtnMobile');
+        const confirmOverlay = document.getElementById('confirmOverlay');
+        const confirmTitle = document.getElementById('confirmTitle');
+        const confirmMessage = document.getElementById('confirmMessage');
+        const confirmDetails = document.getElementById('confirmDetails');
+        const confirmCancelBtn = document.getElementById('confirmCancelBtn');
+        const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+        let pendingConfirmAction = null;
+        let historyCache = [];
+
+        function updateHistoryAuthButtons() {
+            if (token) {
+                historyLoginBtnMobile.style.display = 'none';
+                historySignupBtnMobile.style.display = 'none';
+                historyLogoutBtnMobile.style.display = 'inline-flex';
+            } else {
+                historyLoginBtnMobile.style.display = 'inline-flex';
+                historySignupBtnMobile.style.display = 'inline-flex';
+                historyLogoutBtnMobile.style.display = 'none';
+            }
+        }
+
+        updateHistoryAuthButtons();
+
+        if (!token) {
+            historyContent.innerHTML = `
+                <div class="history-login-msg">
+                    <p>You need to log in to view your prompt history.</p>
+                    <button onclick="window.location.href='/'">Go to Home</button>
+                </div>
+            `;
+            clearAllBtn.style.display = 'none';
+        } else {
+            loadHistory();
+        }
+
+        historyLoginBtnMobile.addEventListener('click', () => {
+            window.location.href = '/';
+        });
+        historySignupBtnMobile.addEventListener('click', () => {
+            window.location.href = '/';
+        });
+        historyLogoutBtnMobile.addEventListener('click', () => {
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('authUser');
+            token = null;
+            updateHistoryAuthButtons();
+            historyCache = [];
+            historyContent.innerHTML = `
+                <div class="history-login-msg">
+                    <p>You have been logged out.</p>
+                    <button onclick="window.location.href='/'">Go to Home</button>
+                </div>
+            `;
+            clearAllBtn.style.display = 'none';
+        });
+
+        async function loadHistory() {
+            try {
+                const res = await fetch('/api/history', {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                const data = await res.json();
+
+                if (!res.ok) {
+                    if (res.status === 401) {
+                        localStorage.removeItem('authToken');
+                        localStorage.removeItem('authUser');
+                        historyContent.innerHTML = `
+                            <div class="history-login-msg">
+                                <p>Session expired. Please log in again.</p>
+                                <button onclick="window.location.href='/'">Go to Home</button>
+                            </div>
+                        `;
+                        clearAllBtn.style.display = 'none';
+                        return;
+                    }
+                    throw new Error(data.error);
+                }
+
+                if (!data.history || data.history.length === 0) {
+                    historyContent.innerHTML = `
+                        <div class="history-empty">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            <p>No history yet</p>
+                            <span>Your enhanced prompts will appear here</span>
+                        </div>
+                    `;
+                    clearAllBtn.style.display = 'none';
+                    return;
+                }
+
+                renderHistory(data.history);
+            } catch (err) {
+                historyContent.innerHTML = `
+                    <div class="history-empty">
+                        <p>Error loading history</p>
+                        <span>${err.message}</span>
+                    </div>
+                `;
+            }
+        }
+
+        function renderHistory(history) {
+            historyCache = history;
+            historyContent.innerHTML = history.map(item => `
+                <div class="history-card" data-id="${item._id}">
+                    <div class="history-card-header">
+                        <div class="history-card-meta">
+                            <span class="history-tone-badge">${item.tone}</span>
+                            <span>${new Date(item.createdAt).toLocaleString()}</span>
+                        </div>
+                        <button class="history-delete-btn" onclick="requestDeleteEntry('${item._id}')" title="Delete">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="3 6 5 6 21 6"></polyline>
+                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="history-section">
+                        <div class="history-section-label">Original Prompt</div>
+                        <div class="history-section-text">${escapeHtml(item.originalPrompt)}</div>
+                    </div>
+                    <button class="history-expand-btn" onclick="toggleExpand('enhanced-${item._id}', this)">Show more</button>
+                    <div class="history-section history-enhanced" id="enhanced-${item._id}">
+                        <div class="history-section-label">Enhanced Prompt</div>
+                        <div class="history-section-text history-enhanced-text">${escapeHtml(item.enhancedPrompt)}</div>
+                    </div>
+                </div> <br>
+            `).join('');
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function toggleExpand(id, btn) {
+            const el = document.getElementById(id);
+            el.classList.toggle('show');
+            btn.textContent = el.classList.contains('show') ? 'Show less' : 'Show more';
+        }
+
+        function openConfirmModal({ title, message, details = '', actionText = 'Delete', onConfirm }) {
+            confirmTitle.textContent = title;
+            confirmMessage.textContent = message;
+            confirmDeleteBtn.textContent = actionText;
+            confirmDetails.textContent = details;
+            confirmDetails.style.display = details ? 'block' : 'none';
+            confirmOverlay.style.display = 'flex';
+            pendingConfirmAction = onConfirm;
+        }
+
+        function closeConfirmModal() {
+            confirmOverlay.style.display = 'none';
+            pendingConfirmAction = null;
+        }
+
+        async function deleteEntry(id) {
+            try {
+                const res = await fetch('/api/history/' + id, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                if (!res.ok) throw new Error('Delete failed');
+                document.querySelector(`[data-id="${id}"]`).remove();
+                showToast('Entry deleted');
+                // Check if empty
+                if (historyContent.children.length === 0) loadHistory();
+            } catch (err) {
+                showToast('Error: ' + err.message);
+            }
+        }
+
+        function requestDeleteEntry(id) {
+            const entry = historyCache.find((item) => item._id === id);
+            const preview = entry ? `Original: ${entry.originalPrompt}` : '';
+            openConfirmModal({
+                title: 'Delete history entry?',
+                message: 'This item will be permanently removed.',
+                details: preview,
+                actionText: 'Delete',
+                onConfirm: async () => {
+                    await deleteEntry(id);
+                }
+            });
+        }
+
+        clearAllBtn.addEventListener('click', async () => {
+            openConfirmModal({
+                title: 'Clear all history?',
+                message: 'This will permanently delete every saved prompt.',
+                details: `Entries: ${historyCache.length}`,
+                actionText: 'Clear all',
+                onConfirm: async () => {
+                    try {
+                        const res = await fetch('/api/history', {
+                            method: 'DELETE',
+                            headers: { 'Authorization': 'Bearer ' + token }
+                        });
+                        if (!res.ok) throw new Error('Clear failed');
+                        showToast('All history cleared');
+                        loadHistory();
+                    } catch (err) {
+                        showToast('Error: ' + err.message);
+                    }
+                }
+            });
+        });
+
+        confirmCancelBtn.addEventListener('click', closeConfirmModal);
+        confirmOverlay.addEventListener('click', (e) => {
+            if (e.target === confirmOverlay) closeConfirmModal();
+        });
+        confirmDeleteBtn.addEventListener('click', async () => {
+            if (!pendingConfirmAction) return;
+            const action = pendingConfirmAction;
+            closeConfirmModal();
+            await action();
+        });
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && confirmOverlay.style.display === 'flex') {
+                closeConfirmModal();
+            }
+        });
+    </script>
+</body>
+</html>
