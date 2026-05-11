@@ -819,6 +819,143 @@ body {
     color: var(--accent-primary);
 }
 
+/* ========================================
+   Voice Input Button & Recording Indicator
+   ======================================== */
+
+/* Mic Button */
+.voice-btn {
+    position: relative;
+}
+
+.voice-btn.recording {
+    background: rgba(239, 68, 68, 0.15);
+    animation: voiceBtnPulse 1.5s ease-in-out infinite;
+}
+
+.voice-btn.recording svg {
+    color: var(--error) !important;
+}
+
+.voice-btn.recording .mic-icon {
+    display: none;
+}
+
+.voice-btn.recording .mic-stop-icon {
+    display: block !important;
+    color: var(--error);
+}
+
+.voice-btn.unsupported {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+@keyframes voiceBtnPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+    50% { box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
+}
+
+/* Voice Recording Indicator Strip */
+.voice-indicator {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 20px;
+    background: linear-gradient(90deg, rgba(239,68,68,0.08) 0%, rgba(239,68,68,0.03) 100%);
+    border-top: 1px solid rgba(239,68,68,0.15);
+    border-bottom: 1px solid rgba(239,68,68,0.15);
+    animation: voiceIndicatorFadeIn 0.3s var(--ease-out);
+}
+
+@keyframes voiceIndicatorFadeIn {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.voice-pulse-ring {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--error);
+    flex-shrink: 0;
+    position: relative;
+    animation: voicePulseRing 1.5s ease-in-out infinite;
+}
+
+.voice-pulse-ring::after {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border-radius: 50%;
+    border: 2px solid var(--error);
+    opacity: 0;
+    animation: voicePulseRingExpand 1.5s ease-in-out infinite;
+}
+
+@keyframes voicePulseRing {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.15); }
+}
+
+@keyframes voicePulseRingExpand {
+    0% { transform: scale(1); opacity: 0.6; }
+    100% { transform: scale(2); opacity: 0; }
+}
+
+.voice-indicator-icon {
+    width: 18px;
+    height: 18px;
+    color: var(--error);
+    flex-shrink: 0;
+    animation: voiceMicBounce 1s ease-in-out infinite;
+}
+
+@keyframes voiceMicBounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-2px); }
+}
+
+.voice-indicator-text {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--error);
+    white-space: nowrap;
+    letter-spacing: 0.01em;
+}
+
+/* Audio wave bars */
+.voice-wave {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    margin-left: auto;
+    height: 20px;
+}
+
+.voice-wave span {
+    display: block;
+    width: 3px;
+    border-radius: 3px;
+    background: var(--error);
+    animation: voiceWaveBar 1.2s ease-in-out infinite;
+}
+
+.voice-wave span:nth-child(1) { height: 6px; animation-delay: 0s; }
+.voice-wave span:nth-child(2) { height: 12px; animation-delay: 0.15s; }
+.voice-wave span:nth-child(3) { height: 18px; animation-delay: 0.3s; }
+.voice-wave span:nth-child(4) { height: 12px; animation-delay: 0.45s; }
+.voice-wave span:nth-child(5) { height: 6px; animation-delay: 0.6s; }
+
+@keyframes voiceWaveBar {
+    0%, 100% { transform: scaleY(0.4); opacity: 0.5; }
+    50% { transform: scaleY(1); opacity: 1; }
+}
+
+[data-theme="dark"] .voice-indicator {
+    background: linear-gradient(90deg, rgba(239,68,68,0.12) 0%, rgba(239,68,68,0.04) 100%);
+}
+
 /* Output Area */
 .output-area {
     flex: 1;

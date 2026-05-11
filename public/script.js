@@ -16,6 +16,7 @@ const toneDropdown = document.getElementById('toneDropdown');
 const enhanceBtn = document.getElementById('enhanceBtn');
 const outputContent = document.getElementById('outputContent');
 const statusBadge = document.getElementById('statusBadge');
+const readBtn = document.getElementById('readBtn');
 const copyBtn = document.getElementById('copyBtn');
 const clearBtn = document.getElementById('clearBtn');
 const contactForm = document.getElementById('contactForm');
@@ -440,8 +441,32 @@ function updateCharCount() {
  * @param {string} message - Message to display
  * @param {number} duration - Duration in milliseconds
  */
-function showToast(message, duration = 3000) {
+function showToast(message, type = 'success', duration = 3000) {
     toastMessage.textContent = message;
+    
+    // Update icon based on type
+    const toastIcon = toast.querySelector('.toast-icon');
+    if (toastIcon) {
+        if (type === 'error') {
+            toastIcon.innerHTML = `
+                <svg viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="8" x2="12" y2="12"></line>
+                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                </svg>
+            `;
+            // Optional: add a slight red tint to background
+            toast.style.borderLeft = '4px solid #ef4444';
+        } else {
+            toastIcon.innerHTML = `
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+            `;
+            toast.style.borderLeft = 'none';
+        }
+    }
+    
     toast.classList.add('show');
     
     setTimeout(() => {
@@ -483,6 +508,16 @@ function updateStatusBadge(state) {
  * Enhance prompt using backend API
  */
 async function enhancePrompt() {
+    // Stop reading output if active
+    if (window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+    }
+    
+    // Stop voice recognition if it is still taking inputs
+    if (typeof isRecording !== 'undefined' && isRecording) {
+        stopVoiceRecording();
+    }
+
     const prompt = promptInput.value.trim();
     
     // Validate input
@@ -525,7 +560,7 @@ async function enhancePrompt() {
     } catch (error) {
         console.error('Error enhancing prompt:', error);
         updateStatusBadge('error');
-        showToast(`Error: ${error.message}`);
+        showToast(`Error: ${error.message}`, 'error');
     } finally {
         setLoadingState(false);
     }
@@ -687,6 +722,69 @@ promptInput.addEventListener('keydown', (e) => {
     }
 });
 
+// Read Output button
+if (readBtn) {
+    const speakerIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+        <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+        <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+    </svg>`;
+    const pauseIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="6" y="4" width="4" height="16"></rect>
+        <rect x="14" y="4" width="4" height="16"></rect>
+    </svg>`;
+
+    const updateIcon = (icon) => {
+        readBtn.innerHTML = icon;
+    };
+
+    // Ensure we start with speaker icon
+    updateIcon(speakerIcon);
+
+    let isCurrentlySpeaking = false;
+
+    const stopReading = () => {
+        window.speechSynthesis.cancel();
+        isCurrentlySpeaking = false;
+        updateIcon(speakerIcon);
+    };
+
+    readBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        const content = outputContent.textContent.trim();
+        if (!content || content.includes('Your enhanced prompt will appear here')) {
+            showToast('Nothing to read');
+            return;
+        }
+
+        if (isCurrentlySpeaking) {
+            // Stop reading completely
+            stopReading();
+            showToast('Stopped reading');
+        } else {
+            // Cancel any stale TTS state 
+            window.speechSynthesis.cancel();
+
+            // Start reading from the beginning
+            setTimeout(() => {
+                window.currentUtterance = new SpeechSynthesisUtterance(content);
+                
+                window.currentUtterance.onend = () => stopReading();
+                window.currentUtterance.onerror = (e) => {
+                    if (e.error !== 'canceled' && e.error !== 'interrupted') {
+                        stopReading();
+                    }
+                };
+
+                window.speechSynthesis.speak(window.currentUtterance);
+                isCurrentlySpeaking = true;
+                updateIcon(pauseIcon);
+                showToast('Started reading');
+            }, 50);
+        }
+    });
+}
+
 // Copy button
 copyBtn.addEventListener('click', copyToClipboard);
 
@@ -701,6 +799,153 @@ if (clearInputBtn) {
         updateCharCount();
         showToast('Input cleared');
     });
+}
+
+// ========================================
+// Voice Input (Web Speech API)
+// ========================================
+
+const voiceInputBtn = document.getElementById('voiceInputBtn');
+const voiceIndicator = document.getElementById('voiceIndicator');
+const voiceIndicatorText = voiceIndicator ? voiceIndicator.querySelector('.voice-indicator-text') : null;
+
+// Check browser support
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+let recognition = null;
+let isRecording = false;
+
+if (SpeechRecognition) {
+    recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = 'en-US';
+    recognition.maxAlternatives = 1;
+
+    // Track position where voice text insertion starts
+    let voiceInsertStart = 0;
+
+    recognition.onstart = () => {
+        isRecording = true;
+        voiceInputBtn.classList.add('recording');
+        if (voiceIndicator) voiceIndicator.style.display = 'flex';
+        if (voiceIndicatorText) voiceIndicatorText.textContent = 'Listening... Speak now';
+        voiceInsertStart = promptInput.value.length;
+        // Add a space separator if textarea already has content
+        if (voiceInsertStart > 0 && !promptInput.value.endsWith(' ') && !promptInput.value.endsWith('\n')) {
+            promptInput.value += ' ';
+            voiceInsertStart = promptInput.value.length;
+        }
+    };
+
+    recognition.onresult = (event) => {
+        let interimTranscript = '';
+        let finalTranscript = '';
+
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+            const transcript = event.results[i][0].transcript;
+            
+            if (event.results[i].isFinal) {
+                finalTranscript += transcript;
+            } else {
+                interimTranscript += transcript;
+            }
+        }
+
+        // Build the current value: original text + final so far + interim preview
+        const baseText = promptInput.value.substring(0, voiceInsertStart);
+
+        if (finalTranscript) {
+            // Commit final text permanently
+            promptInput.value = baseText + finalTranscript;
+            voiceInsertStart = promptInput.value.length;
+            updateCharCount();
+        }
+
+        // Show interim text as a live preview in the indicator
+        if (interimTranscript && voiceIndicatorText) {
+            voiceIndicatorText.textContent = interimTranscript.length > 60
+                ? '...' + interimTranscript.slice(-57)
+                : interimTranscript;
+        } else if (voiceIndicatorText && !interimTranscript) {
+            voiceIndicatorText.textContent = 'Listening... Speak now';
+        }
+    };
+
+    recognition.onerror = (event) => {
+        console.warn('Speech recognition error:', event.error);
+        let msg = 'Voice input error';
+        switch (event.error) {
+            case 'no-speech':
+                msg = 'No speech detected. Try again.';
+                break;
+            case 'audio-capture':
+                msg = 'No microphone found. Check your device.';
+                break;
+            case 'not-allowed':
+                msg = 'Microphone access denied. Allow it in browser settings.';
+                break;
+            case 'network':
+                if (window.location.protocol === 'file:') {
+                    msg = 'Voice input requires a web server (localhost). It does not work on local files.';
+                } else {
+                    msg = 'Network error during voice recognition (Note: Some browsers like Brave may block this).';
+                }
+                break;
+            case 'aborted':
+                // User stopped — no toast needed
+                stopVoiceRecording();
+                return;
+        }
+        showToast(msg, 'error');
+        stopVoiceRecording();
+    };
+
+    recognition.onend = () => {
+        // Auto-stop UI if recognition ends on its own
+        stopVoiceRecording();
+    };
+} else {
+    // Browser doesn't support Speech Recognition
+    if (voiceInputBtn) {
+        voiceInputBtn.classList.add('unsupported');
+        voiceInputBtn.title = 'Voice input is not supported in this browser';
+        voiceInputBtn.disabled = true;
+    }
+}
+
+function startVoiceRecording() {
+    if (!recognition) {
+        showToast('Voice input not supported in this browser. Try Chrome or Edge.');
+        return;
+    }
+    try {
+        recognition.start();
+    } catch (e) {
+        // Already started — ignore
+    }
+}
+
+function stopVoiceRecording() {
+    isRecording = false;
+    voiceInputBtn.classList.remove('recording');
+    if (voiceIndicator) voiceIndicator.style.display = 'none';
+    if (recognition) {
+        try { recognition.stop(); } catch (e) { /* ignore */ }
+    }
+    updateCharCount();
+}
+
+function toggleVoiceRecording() {
+    if (isRecording) {
+        stopVoiceRecording();
+        showToast('Voice recording stopped');
+    } else {
+        startVoiceRecording();
+    }
+}
+
+if (voiceInputBtn && !voiceInputBtn.disabled) {
+    voiceInputBtn.addEventListener('click', toggleVoiceRecording);
 }
 
 // Contact form
